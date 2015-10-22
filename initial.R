@@ -9,9 +9,16 @@ setwd('~/Documents/Dinner/gd TCR/')
 # for each patient, we have (IEL,PBL) x (TRD,TRG) tables
 # all are from Vd1 sorted gdT
 
+# set plot folder
+plot_folder = 'plots_nochallenge/'
+
 # define groups and patient ids
-patient_groups = c('Active','Challenge','Control','GFD')
-patient_ids = list(c(22,35,46,47),c(1),c(7,13,40,53),c(3,4,28,33,43))
+# patient_groups = c('Active','Challenge','Control','GFD')
+# patient_ids = list(c(22,35,46,47,81),c(1,72,78),c(7,13,40,53),c(3,4,28,33,43))
+
+# without challenge
+patient_groups = c('Control','Active','GFD')
+patient_ids = list(c(7,13,40,53),c(22,35,46,47,81),c(3,4,28,33,43))
 
 # given patient group and id, return tcr sequencing data table
 read_patient = function(group,id) {
@@ -54,6 +61,9 @@ for (i in 1:length(patient_groups)) {
 ## slightly modify TRJ labeling => make '2 or 1' equivalent to '1 or 2'
 all_patients.df[all_patients.df$TRJ=='2 or 1',]$TRJ = '1 or 2'
 
+# set order of patient group
+all_patients.df$Group = factor(all_patients.df$Group,levels=c('Control','Active','GFD'))
+
 ## finding duplicate chains ##
 all_patients.df[duplicated(all_patients.df[,c('Chain','TRV','CDR3','TRJ')]),]
 
@@ -71,6 +81,7 @@ for (di in dup_cdr3_indices) {
 }
 
 
+require(reshape2)
 require(plyr)
 require(ggplot2)
 require(RColorBrewer)
@@ -79,8 +90,9 @@ sample_summary = ddply(all_patients.df,.(Group,ID,Tissue,Chain),summarize,sample
 g = ggplot(sample_summary,aes(factor(ID),samples))
 g = g + geom_point(aes(color=Tissue,shape=Chain),size=3)
 g = g + facet_grid(~Group,scales='free_x',space='free_x')
+g = g + xlab('Patient ID')
 g
-ggsave('plots/sample_sizes.png',width=5,height=3)
+ggsave(paste(plot_folder,'sample_sizes.png',sep=''),width=5,height=3)
 
 ## plotting chain distributions by patient ##
 trv_summary = ddply(all_patients.df,.(Group,ID,Tissue,Chain,TRV),summarize,
@@ -112,9 +124,10 @@ for (i in 1:length(tissues)) {
     g = g + geom_bar(stat='identity')
     g = g + scale_fill_manual(values=vcolors,limits=levels(trv$TRV))
     g = g + facet_grid(~Group,scales='free_x',space='free_x')
+    g = g + xlab('Patient ID')
     g
 
-    ggsave(paste('plots/TRV_freq_',tissues[i],'_',chains[j],'.png',sep=''),width=5,height=3)
+    ggsave(paste(plot_folder,'TRV_freq_',tissues[i],'_',chains[j],'.png',sep=''),width=5,height=3)
   }
 }
 
@@ -137,9 +150,10 @@ for (i in 1:length(tissues)) {
     g = g + scale_fill_manual(values=clonecolors)
     g = g + facet_grid(~Group,scales='free_x',space='free_x')
     g = g + theme(legend.position="none")
+    g = g + xlab('Patient ID')
     g
     
-    ggsave(paste('plots/clone_freq_',tissues[i],'_',chains[j],'.png',sep=''),width=5,height=3)
+    ggsave(paste(plot_folder,'clone_freq_',tissues[i],'_',chains[j],'.png',sep=''),width=5,height=3)
   }
 }
 
@@ -154,43 +168,45 @@ diversity_summary = ddply(all_patients.df,.(Group,ID,Tissue,Chain),summarize,
 g = ggplot(diversity_summary,aes(factor(ID),shannon))
 g = g + geom_point(aes(color=Tissue,shape=Chain),size=3)
 g = g + facet_grid(~Group,scales='free_x',space='free_x')
+g = g + xlab('Patient ID')
 g
-ggsave('plots/shannon_summary.png',width=5,height=3)
+ggsave(paste(plot_folder,'shannon_summary.png'),width=5,height=3)
 
 shannon_tissue = dcast(diversity_summary,Group + ID + Chain ~ Tissue,value.var='shannon')
 g = ggplot(shannon_tissue,aes(IEL,PBL))
 g = g + geom_point(aes(color=Group,shape=Chain),size=3)
 g = g + geom_abline(a=1)
 g
-ggsave('plots/shannon_tissue.png')
+ggsave(paste(plot_folder,'shannon_tissue.png',sep=''))
 
 shannon_chain = dcast(diversity_summary,Group + ID + Tissue ~ Chain,value.var='shannon')
 g = ggplot(shannon_chain,aes(TRG,TRD))
 g = g + geom_point(aes(color=Group,shape=Tissue),size=3)
 g = g + geom_abline(a=1)
 g
-ggsave('plots/shannon_chain.png')
+ggsave(paste(plot_folder,'shannon_chain.png',sep=''))
 
 ## using simpson
 g = ggplot(diversity_summary,aes(factor(ID),simpson))
 g = g + geom_point(aes(color=Tissue,shape=Chain),size=3)
 g = g + facet_grid(~Group,scales='free_x',space='free_x')
+g = g + xlab('Patient ID')
 g
-ggsave('plots/simpson_summary.png',width=5,height=3)
+ggsave(paste(plot_folder,'simpson_summary.png',sep=''),width=5,height=3)
 
 simpson_tissue = dcast(diversity_summary,Group + ID + Chain ~ Tissue,value.var='simpson')
 g = ggplot(simpson_tissue,aes(IEL,PBL))
 g = g + geom_point(aes(color=Group,shape=Chain),size=3)
 g = g + geom_abline(a=1)
 g
-ggsave('plots/simpson_tissue.png')
+ggsave(paste(plot_folder,'simpson_tissue.png',sep=''))
 
 simpson_chain = dcast(diversity_summary,Group + ID + Tissue ~ Chain,value.var='simpson')
 g = ggplot(simpson_chain,aes(TRG,TRD))
 g = g + geom_point(aes(color=Group,shape=Tissue),size=3)
 g = g + geom_abline(a=1)
 g
-ggsave('plots/simpson_chain.png')
+ggsave(paste(plot_folder,'simpson_chain.png',sep=''))
 
 ### rarefaction of diversities ###
 divsample = function(counts.df,subsamples,nsamples,divindex) {
@@ -222,8 +238,9 @@ g = ggplot(divshannon_summary,aes(factor(ID),median,color=Tissue,shape=Chain))
 g = g + geom_point(size=3)
 g = g + geom_errorbar(aes(ymin=lq,ymax=uq))
 g = g + facet_grid(~Group,scales='free_x',space='free_x')
+g = g + xlab('Patient ID')
 g
-ggsave('plots/shannon_subsample_summary.png',width=5,height=3)
+ggsave(paste(plot_folder,'shannon_subsample_summary.png',sep=''),width=5,height=3)
 
 ## tissue and chain subsampled
 shannon_tissue = dcast(divshannon_summary,Group + ID + Chain ~ Tissue,value.var='median')
@@ -231,22 +248,23 @@ g = ggplot(shannon_tissue,aes(IEL,PBL))
 g = g + geom_point(aes(color=Group,shape=Chain),size=3)
 g = g + geom_abline(a=1)
 g
-ggsave('plots/shannon_subsample_tissue.png')
+ggsave(paste(plot_folder,'shannon_subsample_tissue.png',sep=''))
 
 shannon_chain = dcast(divshannon_summary,Group + ID + Tissue ~ Chain,value.var='median')
 g = ggplot(shannon_chain,aes(TRG,TRD))
 g = g + geom_point(aes(color=Group,shape=Tissue),size=3)
 g = g + geom_abline(a=1)
 g
-ggsave('plots/shannon_subsample_chain.png')
+ggsave(paste(plot_folder,'shannon_subsample_chain.png',sep=''))
 
 ## simpson subsampled
 g = ggplot(divsimpson_summary,aes(factor(ID),median,color=Tissue,shape=Chain))
 g = g + geom_point(size=3)
 g = g + geom_errorbar(aes(ymin=lq,ymax=uq))
 g = g + facet_grid(~Group,scales='free_x',space='free_x')
+g = g + xlab('Patient ID')
 g
-ggsave('plots/simpson_subsample_summary.png',width=5,height=3)
+ggsave(paste(plot_folder,'simpson_subsample_summary.png',sep=''),width=5,height=3)
 
 ## tissue and chain subsampled
 simpson_tissue = dcast(divsimpson_summary,Group + ID + Chain ~ Tissue,value.var='median')
@@ -254,14 +272,14 @@ g = ggplot(simpson_tissue,aes(IEL,PBL))
 g = g + geom_point(aes(color=Group,shape=Chain),size=3)
 g = g + geom_abline(a=1)
 g
-ggsave('plots/simpson_subsample_tissue.png')
+ggsave(paste(plot_folder,'simpson_subsample_tissue.png',sep=''))
 
 simpson_chain = dcast(divsimpson_summary,Group + ID + Tissue ~ Chain,value.var='median')
 g = ggplot(simpson_chain,aes(TRG,TRD))
 g = g + geom_point(aes(color=Group,shape=Tissue),size=3)
 g = g + geom_abline(a=1)
 g
-ggsave('plots/simpson_subsample_chain.png')
+ggsave(paste(plot_folder,'simpson_subsample_chain.png',sep=''))
 
 
 ### some CDR3 sequence statistics ###
@@ -307,58 +325,66 @@ for (i in 1:length(tissues)){
   g = ggplot(cdr3_prop_expand[cdr3_prop_expand$Tissue==tissues[i],],aes(factor(ID),CDR3.length))
   g = g + geom_boxplot(aes(color=Chain))
   g = g + facet_grid(~Group,scales='free_x',space='free_x')
+  g = g + xlab('Patient ID')
   g
-  ggsave(paste('plots/cdr3length_',tissues[i],'.png',sep=''),width=5,height=3)
+  ggsave(paste(plot_folder,'cdr3length_',tissues[i],'.png',sep=''),width=5,height=3)
   
   # hydrophobic
   g = ggplot(cdr3_prop_expand[cdr3_prop_expand$Tissue==tissues[i],],aes(factor(ID),hydrophobic))
   g = g + geom_boxplot(aes(color=Chain))
   g = g + facet_grid(~Group,scales='free_x',space='free_x')
+  g = g + xlab('Patient ID')
   g
-  ggsave(paste('plots/hydrophobic_',tissues[i],'.png',sep=''),width=5,height=3)
+  ggsave(paste(plot_folder,'hydrophobic_',tissues[i],'.png',sep=''),width=5,height=3)
 
   # hydrophilic
   g = ggplot(cdr3_prop_expand[cdr3_prop_expand$Tissue==tissues[i],],aes(factor(ID),hydrophilic))
   g = g + geom_boxplot(aes(color=Chain))
   g = g + facet_grid(~Group,scales='free_x',space='free_x')
+  g = g + xlab('Patient ID')
   g
-  ggsave(paste('plots/hydrophilic_',tissues[i],'.png',sep=''),width=5,height=3)
+  ggsave(paste(plot_folder,'hydrophilic_',tissues[i],'.png',sep=''),width=5,height=3)
   
   # positive
   g = ggplot(cdr3_prop_expand[cdr3_prop_expand$Tissue==tissues[i],],aes(factor(ID),positive))
   g = g + geom_boxplot(aes(color=Chain))
   g = g + facet_grid(~Group,scales='free_x',space='free_x')
+  g = g = xlab('Patient ID')
   g
-  ggsave(paste('plots/positive_',tissues[i],'.png',sep=''),width=5,height=3)
+  ggsave(paste(plot_folder,'positive_',tissues[i],'.png',sep=''),width=5,height=3)
   
   # negative
   g = ggplot(cdr3_prop_expand[cdr3_prop_expand$Tissue==tissues[i],],aes(factor(ID),negative))
   g = g + geom_boxplot(aes(color=Chain))
   g = g + facet_grid(~Group,scales='free_x',space='free_x')
+  g = g + xlab('Patient ID')
   g
-  ggsave(paste('plots/negative_',tissues[i],'.png',sep=''),width=5,height=3)
+  ggsave(paste(plot_folder,'negative_',tissues[i],'.png',sep=''),width=5,height=3)
   
   # more refined hydrophobic scales
   # Kyte Doolittle (KD)
   g = ggplot(cdr3_prop_expand[cdr3_prop_expand$Tissue==tissues[i],],aes(factor(ID),KD))
   g = g + geom_boxplot(aes(color=Chain))
   g = g + facet_grid(~Group,scales='free_x',space='free_x')
+  g = g + xlab('Patient ID')
   g
-  ggsave(paste('plots/hydrophobic_KD_',tissues[i],'.png',sep=''),width=5,height=3)
+  ggsave(paste(plot_folder,'hydrophobic_KD_',tissues[i],'.png',sep=''),width=5,height=3)
   
   # Whimley White (WW)
   g = ggplot(cdr3_prop_expand[cdr3_prop_expand$Tissue==tissues[i],],aes(factor(ID),WW))
   g = g + geom_boxplot(aes(color=Chain))
   g = g + facet_grid(~Group,scales='free_x',space='free_x')
+  g = g + xlab('Patient ID')
   g
-  ggsave(paste('plots/hydrophobic_WW_',tissues[i],'.png',sep=''),width=5,height=3)
+  ggsave(paste(plot_folder,'hydrophobic_WW_',tissues[i],'.png',sep=''),width=5,height=3)
   
   # Hessa von Heigne (HH)
   g = ggplot(cdr3_prop_expand[cdr3_prop_expand$Tissue==tissues[i],],aes(factor(ID),HH))
   g = g + geom_boxplot(aes(color=Chain))
   g = g + facet_grid(~Group,scales='free_x',space='free_x')
+  g = g + xlab('Patient ID')
   g
-  ggsave(paste('plots/hydrophobic_HH_',tissues[i],'.png',sep=''),width=5,height=3)
+  ggsave(paste(plot_folder,'hydrophobic_HH_',tissues[i],'.png',sep=''),width=5,height=3)
 }
 
 #################################
