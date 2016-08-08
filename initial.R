@@ -10,15 +10,15 @@ setwd('~/Documents/Dinner/gd TCR/')
 # all are from Vd1 sorted gdT
 
 # set plot folder
-plot_folder = 'plots/'
+plot_folder = 'plots_nochallenge/'
 
 # define groups and patient ids
-patient_groups = c('Active','Challenge','Control','GFD','Uncategorized')
-patient_ids = list(c(22,35,46,47,81),c(1,72,78),c(7,13,40,53,110),c(3,4,28,33,43),c(49))
+# patient_groups = c('Active','Challenge','Control','GFD')
+# patient_ids = list(c(22,35,46,47,81),c(1,72,78),c(7,13,40,53),c(3,4,28,33,43))
 
 # without challenge
-# patient_groups = c('Control','Active','GFD')
-# patient_ids = list(c(7,13,40,53),c(22,35,46,47,81),c(3,4,28,33,43))
+patient_groups = c('Control','Active','GFD')
+patient_ids = list(c(7,13,40,53),c(22,35,46,47,81),c(3,4,28,33,43))
 
 # given patient group and id, return tcr sequencing data table
 read_patient = function(group,id) {
@@ -62,21 +62,16 @@ for (i in 1:length(patient_groups)) {
 all_patients.df[all_patients.df$TRJ=='2 or 1',]$TRJ = '1 or 2'
 
 # set order of patient group
-all_patients.df$Group = factor(all_patients.df$Group,levels=c('Control','Active','GFD','Challenge','Uncategorized'))
+all_patients.df$Group = factor(all_patients.df$Group,levels=c('Control','Active','GFD'))
 
 ## finding duplicate chains ##
-dup_all = all_patients.df[duplicated(all_patients.df[,c('Chain','TRV','CDR3','TRJ')]),]
+all_patients.df[duplicated(all_patients.df[,c('Chain','TRV','CDR3','TRJ')]),]
 
 # there are only 4 exact duplicates (matching chain,V,CDR3,J)!
 all_patients.df[with(all_patients.df,Chain=='TRD' & TRV=='1' & CDR3=='CALGDQRVPIPWTGGYRHTDKLIF' & TRJ=='1'),]
 all_patients.df[with(all_patients.df,Chain=='TRD' & TRV=='1' & CDR3=='CALGEYGRGSWGISHTDKLIF' & TRJ=='1'),]
 all_patients.df[with(all_patients.df,Chain=='TRG' & TRV=='2' & CDR3=='CATWDGPNYYKKLF' & TRJ=='2'),]
 all_patients.df[with(all_patients.df,Chain=='TRG' & TRV=='9' & CDR3=='CALWEVLYKKLF' & TRJ=='1 or 2'),]
-# ...
-# access by index 
-dindex = 7
-all_patients.df[with(all_patients.df,Chain==dup_all$Chain[dindex] & TRV==dup_all$TRV[dindex] & CDR3==dup_all$CDR3[dindex] & TRJ==dup_all$TRJ[dindex]),]
-
 
 ## getting all duplicated CDR3 sequences ##
 dup_cdr3_indices = which(duplicated(all_patients.df[,c('Chain','CDR3')])) # 13 clones
@@ -168,13 +163,6 @@ require(vegan)
 diversity_summary = ddply(all_patients.df,.(Group,ID,Tissue,Chain),summarize,
                     shannon=diversity(Count,index='shannon'),simpson=diversity(Count,index='simpson'))
 
-# paired scatter plot
-g = ggplot(diversity_summary[diversity_summary$Tissue=='IEL',],aes(Chain,shannon,color=Group))
-g = g + geom_point() 
-# g = g + geom_boxplot()
-g = g + geom_line(aes(group=ID))
-g
-
 # scatter comparison by patient and group
 ## using shannon
 g = ggplot(diversity_summary,aes(factor(ID),shannon))
@@ -188,8 +176,9 @@ shannon_tissue = dcast(diversity_summary,Group + ID + Chain ~ Tissue,value.var='
 g = ggplot(shannon_tissue,aes(IEL,PBL))
 g = g + geom_point(aes(color=Group,shape=Chain),size=3)
 g = g + geom_abline(a=1)
+g = g + scale_color_manual(values=c('Control'='blue','Active'='red','GFD'='green'))
 g
-ggsave(paste(plot_folder,'shannon_tissue.png',sep=''))
+ggsave(paste('plots_nochallenge/shannon_tissue.png',sep=''))
 
 shannon_chain = dcast(diversity_summary,Group + ID + Tissue ~ Chain,value.var='shannon')
 g = ggplot(shannon_chain,aes(TRG,TRD))
@@ -403,8 +392,8 @@ for (i in 1:length(tissues)){
 ## multiple sequence alignment ##
 #################################
 # split into gamma and delta chains
-all_patients_TRG.df = cdr3_properties[cdr3_properties$Chain=='TRG',]
-all_patients_TRD.df = cdr3_properties[cdr3_properties$Chain=='TRD',]
+all_patients_TRG.df = all_patients.df[all_patients.df$Chain=='TRG',]
+all_patients_TRD.df = all_patients.df[all_patients.df$Chain=='TRD',]
 
 ## first try pairwise alignment between CDR3 sequences of all unique clones ##
 require(Biostrings)
@@ -449,26 +438,6 @@ plot_pairwise = function(scores,patients.df,chain,cwidth){
            filename=paste('plots/pairwise_',chain,'.png',sep=''),cellwidth=cwidth,cellheight=cwidth,
            labCol=NA,labRow=NA,Colv='Rowv'))
 }
-
-# cdr3 properties clustered
-plot_pairwise_properties = function(scores,patients.df,chain,cwidth){
-  ann_colors = list(group=c('red','orange','black','blue'),
-                    KD=c('purple'),
-                    tissue=c('grey','black'),
-                    POS=c('blue'),
-                    NEG=c('red'),
-                    freq=c('darkgreen'),
-                    length=c('black'))
-  
-  annotation = data.frame(group=patients.df$Group,ID=patients.df$KD,tissue=patients.df$Tissue,
-                          POS=patients.df$positive,NEG=patients.df$negative,freq=patients.df$Freq,
-                          length=patients.df$CDR3.length)
-  
-  return(aheatmap(scores,color=quakescale(100),annCol=annotation,annColors=ann_colors,annRow=annotation,
-                  filename=paste('plots/pairwise_properties_',chain,'.png',sep=''),cellwidth=cwidth,cellheight=cwidth,
-                  labCol=NA,labRow=NA,Colv='Rowv'))
-}
-
 
 TRD_ahm = plot_pairwise(TRD_scores,all_patients_TRD.df,'TRD',1.2)
 TRG_ahm = plot_pairwise(TRG_scores,all_patients_TRG.df,'TRG',1.5)
